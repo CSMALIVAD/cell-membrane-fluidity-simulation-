@@ -10,7 +10,6 @@ margin:0;
 background:#020617;
 color:white;
 font-family:Arial;
-text-align:center;
 }
 
 canvas{
@@ -19,7 +18,7 @@ height:100vh;
 display:block;
 }
 
-/* region labels */
+/* labels */
 
 .label{
 position:absolute;
@@ -63,7 +62,7 @@ margin-right:6px;
 .channel{background:#6c5ce7}
 .carrier{background:#ff922b}
 .integral{background:#845ef7}
-.glyco{background:#40c057}
+glyco{background:#40c057}
 .cyt{background:#ff6b6b}
 
 </style>
@@ -113,7 +112,42 @@ const TAIL=75
 const OFFSET=95
 const SPACING=16
 
-/* PHOSPHOLIPID */
+/* ======================
+CHOLESTEROL
+====================== */
+
+class Cholesterol{
+
+constructor(x){
+this.x=x
+}
+
+move(){
+
+this.x+=(Math.random()-0.5)*0.2
+
+if(this.x<-40) this.x=canvas.width+40
+if(this.x>canvas.width+40) this.x=-40
+
+}
+
+draw(){
+
+ctx.fillStyle="#ffe066"
+
+ctx.fillRect(this.x-4,mid()-38,8,76)
+
+ctx.beginPath()
+ctx.arc(this.x,mid()-42,3,0,Math.PI*2)
+ctx.fill()
+
+}
+
+}
+
+/* ======================
+PHOSPHOLIPID
+====================== */
 
 class Lipid{
 
@@ -121,6 +155,9 @@ constructor(x,leaflet){
 
 this.x=x
 this.leaflet=leaflet
+
+this.vx=(Math.random()-0.5)*0.2
+
 this.phase=Math.random()*Math.PI
 this.unsat=Math.random()<0.35
 
@@ -131,9 +168,25 @@ this.flipP=0
 
 move(){
 
-/* Brownian random walk */
+/* cholesterol ordering */
 
-this.x+=(Math.random()-0.5)*0.6
+let slow=1
+
+cholesterol.forEach(c=>{
+if(Math.abs(c.x-this.x)<25){
+slow=0.5
+}
+})
+
+/* Brownian acceleration */
+
+this.vx+=(Math.random()-0.5)*0.05
+
+if(this.vx>0.4) this.vx=0.4
+if(this.vx<-0.4) this.vx=-0.4
+
+this.x+=this.vx*slow
+
 this.phase+=0.08
 
 /* infinite wrap */
@@ -144,8 +197,10 @@ if(this.x>canvas.width+40) this.x=-40
 /* rare flip flop */
 
 if(!this.flip && Math.random()<0.000001){
+
 this.flip=true
 this.flipP=0
+
 }
 
 if(this.flip){
@@ -153,8 +208,10 @@ if(this.flip){
 this.flipP+=0.02
 
 if(this.flipP>=1){
+
 this.flip=false
 this.leaflet=this.leaflet==="outer"?"inner":"outer"
+
 }
 
 }
@@ -170,6 +227,7 @@ if(this.flip){
 
 const start=this.leaflet==="outer"?mid()-OFFSET:mid()+OFFSET
 const end=this.leaflet==="outer"?mid()+OFFSET:mid()-OFFSET
+
 y=start+(end-start)*this.flipP
 
 }
@@ -182,12 +240,18 @@ ctx.beginPath()
 ctx.arc(this.x,y,HEAD,0,Math.PI*2)
 ctx.fill()
 
-/* tails */
+/* tail ordering near cholesterol */
+
+let bend=Math.sin(this.phase)*6
+
+cholesterol.forEach(c=>{
+if(Math.abs(c.x-this.x)<25){
+bend*=0.3
+}
+})
 
 ctx.strokeStyle="#ffd43b"
 ctx.lineWidth=2
-
-const bend=Math.sin(this.phase)*6
 
 ctx.beginPath()
 
@@ -212,35 +276,9 @@ ctx.stroke()
 
 }
 
-/* CHOLESTEROL */
-
-class Cholesterol{
-
-constructor(x){
-this.x=x
-}
-
-move(){
-this.x+=(Math.random()-0.5)*0.2
-if(this.x<-40) this.x=canvas.width+40
-if(this.x>canvas.width+40) this.x=-40
-}
-
-draw(){
-
-ctx.fillStyle="#ffe066"
-
-ctx.fillRect(this.x-4,mid()-38,8,76)
-
-ctx.beginPath()
-ctx.arc(this.x,mid()-42,3,0,Math.PI*2)
-ctx.fill()
-
-}
-
-}
-
-/* CHANNEL */
+/* ======================
+CHANNEL
+====================== */
 
 class Channel{
 
@@ -280,7 +318,9 @@ ctx.fill()
 
 }
 
-/* CARRIER */
+/* ======================
+CARRIER
+====================== */
 
 class Carrier{
 
@@ -307,7 +347,9 @@ ctx.fill()
 
 }
 
-/* INTEGRAL */
+/* ======================
+INTEGRAL PROTEIN
+====================== */
 
 class Integral{
 
@@ -412,7 +454,7 @@ glyco.push(new Glycoprotein(Math.random()*canvas.width))
 for(let i=0;i<12;i++)
 cytos.push(new Cytoskeleton(Math.random()*canvas.width))
 
-/* ANIMATION */
+/* animation */
 
 function animate(){
 
@@ -432,7 +474,6 @@ carrier.draw()
 integral.draw()
 
 glyco.forEach(g=>g.draw())
-
 cytos.forEach(c=>c.draw())
 
 requestAnimationFrame(animate)
