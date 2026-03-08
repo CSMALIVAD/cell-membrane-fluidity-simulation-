@@ -18,7 +18,7 @@ height:100vh;
 display:block;
 }
 
-/* labels */
+/* region labels */
 
 .label{
 position:absolute;
@@ -78,13 +78,15 @@ margin-right:6px;
 <div id="cyto" class="label">Cytoplasm</div>
 
 <div class="legend">
+
 <div><span class="sym head"></span>Phospholipid head</div>
 <div><span class="sym tail"></span>Fatty acid tails</div>
 <div><span class="sym chol"></span>Cholesterol</div>
 <div><span class="sym channel"></span>Ion channel</div>
-<div><span class="sym carrier"></span>Transport protein</div>
+<div><span class="sym carrier"></span>Carrier protein</div>
 <div><span class="sym pump"></span>Na⁺/K⁺ pump</div>
 <div><span class="sym integral"></span>Integral protein</div>
+
 </div>
 
 <script>
@@ -106,7 +108,7 @@ const TAIL=70
 const HEAD=9
 const SPACING=10
 
-/* dynamic curvature */
+/* dynamic membrane curvature */
 
 let time=0
 
@@ -114,30 +116,9 @@ function membraneCurve(x){
 return Math.sin(x*0.006+time)*12
 }
 
-/* lipid rafts */
-
-const rafts=[
-{center:300,width:200},
-{center:900,width:220}
-]
-
-function raftFactor(x){
-
-let f=1
-
-rafts.forEach(r=>{
-if(Math.abs(x-r.center)<r.width/2){
-f=0.5
-}
-})
-
-return f
-
-}
-
-/* =================
+/* ====================
 PHOSPHOLIPID
-================ */
+==================== */
 
 class Lipid{
 
@@ -157,7 +138,7 @@ this.vx+=(Math.random()-0.5)*0.05
 if(this.vx>0.4) this.vx=0.4
 if(this.vx<-0.4) this.vx=-0.4
 
-this.x+=this.vx*raftFactor(this.x)
+this.x+=this.vx
 
 if(this.x<-40) this.x=canvas.width+40
 if(this.x>canvas.width+40) this.x=-40
@@ -182,7 +163,7 @@ ctx.fill()
 ctx.strokeStyle="#ffd43b"
 ctx.lineWidth=2
 
-let bend=Math.sin(this.phase)*6*raftFactor(this.x)
+let bend=Math.sin(this.phase)*6
 
 ctx.beginPath()
 
@@ -198,9 +179,9 @@ ctx.stroke()
 
 }
 
-/* =================
+/* ====================
 CHOLESTEROL
-================ */
+==================== */
 
 class Cholesterol{
 
@@ -228,17 +209,15 @@ ctx.fill()
 
 }
 
-/* =================
+/* ====================
 ION CHANNEL
-================ */
+==================== */
 
 class Channel{
 
 constructor(x){
-
 this.x=x
 this.ions=[]
-
 }
 
 move(){
@@ -274,18 +253,16 @@ ctx.fill()
 
 }
 
-/* =================
-TRANSPORT PROTEIN
-================ */
+/* ====================
+CARRIER PROTEIN
+==================== */
 
 class Carrier{
 
 constructor(x){
-
 this.x=x
 this.phase=0
 this.molecules=[]
-
 }
 
 move(){
@@ -325,9 +302,9 @@ ctx.fill()
 
 }
 
-/* =================
+/* ====================
 Na/K PUMP
-================ */
+==================== */
 
 class Pump{
 
@@ -343,12 +320,14 @@ this.k=[]
 
 move(){
 
+let center=mid()+membraneCurve(this.x)
+
 this.timer++
 
 if(this.state===0){
 
 if(this.na.length<3){
-this.na.push({y:mid()+90})
+this.na.push({y:center+90})
 }
 
 if(this.timer>40){
@@ -362,7 +341,7 @@ else if(this.state===1){
 
 this.na.forEach(i=>i.y-=2)
 
-if(this.na.every(i=>i.y<mid()-110)){
+if(this.na.every(i=>i.y<center-110)){
 this.na=[]
 this.state=2
 this.timer=0
@@ -373,7 +352,7 @@ this.timer=0
 else if(this.state===2){
 
 if(this.k.length<2){
-this.k.push({y:mid()-110})
+this.k.push({y:center-110})
 }
 
 if(this.timer>40){
@@ -387,7 +366,7 @@ else if(this.state===3){
 
 this.k.forEach(i=>i.y+=2)
 
-if(this.k.every(i=>i.y>mid()+90)){
+if(this.k.every(i=>i.y>center+90)){
 this.k=[]
 this.state=0
 this.timer=0
@@ -427,9 +406,9 @@ ctx.fill()
 
 }
 
-/* =================
+/* ====================
 INTEGRAL PROTEIN
-================ */
+==================== */
 
 class Integral{
 
