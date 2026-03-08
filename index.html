@@ -54,8 +54,8 @@ margin-right:6px;
 
 .head{background:#4dabf7}
 .tail{background:#ffd43b}
-.raft{background:#ffa94d}
-.chol{background:#ffe066}
+.protein{background:#845ef7}
+.pump{background:#ff6b6b}
 
 </style>
 </head>
@@ -65,17 +65,17 @@ margin-right:6px;
 <canvas id="membrane"></canvas>
 
 <div id="extra" class="label">Extracellular space</div>
-<div id="outer" class="label">Outer leaflet</div>
-<div id="core" class="label">Hydrophobic core</div>
-<div id="inner" class="label">Inner leaflet</div>
+<div id="outer" class="label">Outer hydrophilic surface</div>
+<div id="core" class="label">Hydrophobic lipid core</div>
+<div id="inner" class="label">Inner hydrophilic surface</div>
 <div id="cyto" class="label">Cytoplasm</div>
 
 <div class="legend">
 
 <div><span class="sym head"></span>Phospholipid head</div>
 <div><span class="sym tail"></span>Fatty acid tails</div>
-<div><span class="sym chol"></span>Cholesterol</div>
-<div><span class="sym raft"></span>Lipid raft domain</div>
+<div><span class="sym protein"></span>Membrane proteins</div>
+<div><span class="sym pump"></span>Na⁺/K⁺ pump</div>
 
 </div>
 
@@ -104,65 +104,9 @@ function membraneCurve(x){
 return Math.sin(x*0.006+time)*8
 }
 
-/* lipid raft domains */
-
-const rafts=[
-{center:300,width:220},
-{center:800,width:240}
-]
-
-function raftFactor(x){
-
-let factor=1
-
-rafts.forEach(r=>{
-if(Math.abs(x-r.center)<r.width/2){
-factor=0.4
-}
-})
-
-return factor
-
-}
-
-/* ===================
-CHOLESTEROL
-=================== */
-
-class Cholesterol{
-
-constructor(x){
-this.x=x
-}
-
-move(){
-
-this.x+=(Math.random()-0.5)*0.1
-
-if(this.x<-40) this.x=canvas.width+40
-if(this.x>canvas.width+40) this.x=-40
-
-}
-
-draw(){
-
-let y=mid()+membraneCurve(this.x)
-
-ctx.fillStyle="#ffe066"
-
-ctx.fillRect(this.x-3,y-35,6,70)
-
-ctx.beginPath()
-ctx.arc(this.x,y-40,3,0,Math.PI*2)
-ctx.fill()
-
-}
-
-}
-
-/* ===================
+/* ======================
 PHOSPHOLIPID
-=================== */
+====================== */
 
 class Lipid{
 
@@ -172,30 +116,20 @@ this.x=x
 this.leaflet=leaflet
 
 this.vx=(Math.random()-0.5)*0.2
-this.phase=Math.random()*Math.PI
 
+this.phase=Math.random()*Math.PI
 this.unsat=Math.random()<0.4
 
 }
 
 move(){
 
-let slow=raftFactor(this.x)
-
-/* cholesterol ordering */
-
-cholesterol.forEach(c=>{
-if(Math.abs(c.x-this.x)<25){
-slow*=0.5
-}
-})
-
 this.vx+=(Math.random()-0.5)*0.05
 
 if(this.vx>0.4) this.vx=0.4
 if(this.vx<-0.4) this.vx=-0.4
 
-this.x+=this.vx*slow
+this.x+=this.vx
 
 if(this.x<-40) this.x=canvas.width+40
 if(this.x>canvas.width+40) this.x=-40
@@ -211,13 +145,15 @@ let y=base+membraneCurve(this.x)
 
 const dir=this.leaflet==="outer"?1:-1
 
+/* hydrophilic head */
+
 ctx.fillStyle="#4dabf7"
 
 ctx.beginPath()
 ctx.arc(this.x,y,HEAD,0,Math.PI*2)
 ctx.fill()
 
-/* glycocalyx */
+/* glycocalyx (outer leaflet only) */
 
 if(this.leaflet==="outer" && Math.random()<0.05){
 
@@ -242,30 +178,26 @@ ctx.stroke()
 ctx.strokeStyle="#ffd43b"
 ctx.lineWidth=2
 
-let bend=Math.sin(this.phase)*6
-
-cholesterol.forEach(c=>{
-if(Math.abs(c.x-this.x)<25){
-bend*=0.3
-}
-})
+let vib=Math.sin(this.phase)*6
 
 ctx.beginPath()
+
+/* unsaturated kink */
 
 if(this.unsat){
 
 ctx.moveTo(this.x-4,y)
-ctx.quadraticCurveTo(this.x-10,y+dir*25,this.x-4+bend,y+dir*TAIL)
+ctx.quadraticCurveTo(this.x-10,y+dir*25,this.x-4+vib,y+dir*TAIL)
 
 }else{
 
 ctx.moveTo(this.x-4,y)
-ctx.lineTo(this.x-4+bend,y+dir*TAIL)
+ctx.lineTo(this.x-4+vib,y+dir*TAIL)
 
 }
 
 ctx.moveTo(this.x+4,y)
-ctx.lineTo(this.x+4-bend,y+dir*TAIL)
+ctx.lineTo(this.x+4-vib,y+dir*TAIL)
 
 ctx.stroke()
 
@@ -273,9 +205,53 @@ ctx.stroke()
 
 }
 
-/* ===================
-Na/K PUMP
-=================== */
+/* ======================
+ION CHANNEL
+====================== */
+
+class Channel{
+
+constructor(x){
+this.x=x
+this.ions=[]
+}
+
+move(){
+
+if(Math.random()<0.03)
+this.ions.push({y:mid()-120})
+
+this.ions.forEach(i=>i.y+=2)
+
+this.ions=this.ions.filter(i=>i.y<mid()+120)
+
+}
+
+draw(){
+
+let y=mid()+membraneCurve(this.x)
+
+ctx.fillStyle="#6c5ce7"
+
+ctx.beginPath()
+ctx.roundRect(this.x-16,y-110,32,220,12)
+ctx.fill()
+
+ctx.fillStyle="#00e5ff"
+
+this.ions.forEach(i=>{
+ctx.beginPath()
+ctx.arc(this.x,i.y,4,0,Math.PI*2)
+ctx.fill()
+})
+
+}
+
+}
+
+/* ======================
+Na/K ATPase
+====================== */
 
 class Pump{
 
@@ -296,6 +272,8 @@ let center=mid()+membraneCurve(this.x)
 
 this.timer++
 
+/* bind Na inside */
+
 if(this.state===0){
 
 if(this.na.length<3)
@@ -307,6 +285,8 @@ this.timer=0
 }
 
 }
+
+/* pump Na out */
 
 else if(this.state===1){
 
@@ -320,6 +300,8 @@ this.timer=0
 
 }
 
+/* bind K outside */
+
 else if(this.state===2){
 
 if(this.k.length<2)
@@ -331,6 +313,8 @@ this.timer=0
 }
 
 }
+
+/* pump K in */
 
 else if(this.state===3){
 
@@ -376,10 +360,35 @@ ctx.fill()
 
 }
 
+/* ======================
+CYTOSKELETON
+====================== */
+
+class Cytoskeleton{
+
+constructor(x){
+this.x=x
+}
+
+draw(){
+
+let y=mid()+OFFSET+20
+
+ctx.strokeStyle="#ff6b6b"
+
+ctx.beginPath()
+ctx.moveTo(this.x,y)
+ctx.lineTo(this.x+30,y+20)
+ctx.stroke()
+
+}
+
+}
+
 /* arrays */
 
 const lipids=[]
-const cholesterol=[]
+const cytos=[]
 
 for(let x=0;x<canvas.width;x+=SPACING){
 
@@ -388,9 +397,10 @@ lipids.push(new Lipid(x,"inner"))
 
 }
 
-for(let x=50;x<canvas.width;x+=120)
-cholesterol.push(new Cholesterol(x))
+for(let i=0;i<20;i++)
+cytos.push(new Cytoskeleton(Math.random()*canvas.width))
 
+const channel=new Channel(canvas.width*0.25)
 const pump=new Pump(canvas.width*0.5)
 
 /* animation */
@@ -404,25 +414,18 @@ time+=0.02
 ctx.fillStyle="rgba(255,255,255,0.03)"
 ctx.fillRect(0,mid()-90,canvas.width,180)
 
-/* raft visual */
-
-rafts.forEach(r=>{
-ctx.fillStyle="rgba(255,169,77,0.08)"
-ctx.fillRect(r.center-r.width/2,mid()-90,r.width,180)
-})
-
 lipids.forEach(l=>{
 l.move()
 l.draw()
 })
 
-cholesterol.forEach(c=>{
-c.move()
-c.draw()
-})
+channel.move()
+channel.draw()
 
 pump.move()
 pump.draw()
+
+cytos.forEach(c=>c.draw())
 
 requestAnimationFrame(animate)
 
