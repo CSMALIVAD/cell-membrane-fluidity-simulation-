@@ -108,7 +108,7 @@ class Cholesterol{
 constructor(x){
 
 this.x=x
-this.v=(Math.random()-0.5)*0.06
+this.v=(Math.random()-0.5)*0.05
 this.side=Math.random()<0.5?-1:1
 
 }
@@ -124,14 +124,14 @@ if(this.x>canvas.width) this.x=0
 
 draw(){
 
-const y=mid()+this.side*30
+const y=mid()+this.side*34
 
 ctx.fillStyle="#ffe066"
 
-ctx.fillRect(this.x-3,y-18,6,36)
+ctx.fillRect(this.x-4,y-22,8,44)
 
 ctx.beginPath()
-ctx.arc(this.x,y-this.side*20,2.5,0,Math.PI*2)
+ctx.arc(this.x,y-this.side*26,3,0,Math.PI*2)
 ctx.fill()
 
 }
@@ -148,7 +148,7 @@ constructor(x,leaflet){
 
 this.x=x
 this.leaflet=leaflet
-this.v=(Math.random()-0.5)*0.2
+this.v=(Math.random()-0.5)*0.18
 this.rot=Math.random()*Math.PI
 
 this.flip=false
@@ -158,16 +158,15 @@ this.flipProgress=0
 
 move(){
 
-let slowFactor=1
+let slow=1
 
 cholesterol.forEach(c=>{
-if(Math.abs(c.x-this.x)<25){
-slowFactor=0.6
+if(Math.abs(c.x-this.x)<28){
+slow=0.6
 }
 })
 
-this.x+=this.v*slowFactor
-
+this.x+=this.v*slow
 this.rot+=0.03
 
 if(this.x<0) this.x=canvas.width
@@ -197,14 +196,14 @@ let y
 
 if(this.flip){
 
-const start=this.leaflet==="outer"?mid()-85:mid()+85
-const end=this.leaflet==="outer"?mid()+85:mid()-85
+const start=this.leaflet==="outer"?mid()-95:mid()+95
+const end=this.leaflet==="outer"?mid()+95:mid()-95
 
 y=start+(end-start)*this.flipProgress
 
 }else{
 
-y=this.leaflet==="outer"?mid()-85:mid()+85
+y=this.leaflet==="outer"?mid()-95:mid()+95
 
 }
 
@@ -213,22 +212,22 @@ const dir=this.leaflet==="outer"?1:-1
 ctx.save()
 
 ctx.translate(this.x,y)
-ctx.rotate(Math.sin(this.rot)*0.2)
+ctx.rotate(Math.sin(this.rot)*0.18)
 
 ctx.fillStyle="#4dabf7"
 ctx.beginPath()
-ctx.arc(0,0,6,0,Math.PI*2)
+ctx.arc(0,0,9,0,Math.PI*2)
 ctx.fill()
 
 ctx.strokeStyle="#ffd43b"
-ctx.lineWidth=2
+ctx.lineWidth=3
 
 ctx.beginPath()
 ctx.moveTo(0,0)
-ctx.lineTo(-4,dir*34)
+ctx.lineTo(-6,dir*44)
 
 ctx.moveTo(0,0)
-ctx.lineTo(4,dir*34)
+ctx.lineTo(6,dir*44)
 ctx.stroke()
 
 ctx.restore()
@@ -251,11 +250,11 @@ this.ions=[]
 move(){
 
 if(Math.random()<0.03){
-this.ions.push({y:mid()-90})
+this.ions.push({y:mid()-110})
 }
 
-this.ions.forEach(i=>i.y+=1.6)
-this.ions=this.ions.filter(i=>i.y<mid()+90)
+this.ions.forEach(i=>i.y+=1.7)
+this.ions=this.ions.filter(i=>i.y<mid()+110)
 
 }
 
@@ -264,14 +263,14 @@ draw(){
 ctx.fillStyle="#845ef7"
 
 ctx.beginPath()
-ctx.roundRect(this.x-12,mid()-95,24,190,12)
+ctx.roundRect(this.x-14,mid()-110,28,220,14)
 ctx.fill()
 
 ctx.fillStyle="#00e5ff"
 
 this.ions.forEach(i=>{
 ctx.beginPath()
-ctx.arc(this.x,i.y,3,0,Math.PI*2)
+ctx.arc(this.x,i.y,4,0,Math.PI*2)
 ctx.fill()
 })
 
@@ -288,7 +287,7 @@ class Carrier{
 constructor(x){
 
 this.x=x
-this.v=(Math.random()-0.5)*0.06
+this.v=(Math.random()-0.5)*0.05
 this.phase=0
 
 }
@@ -305,12 +304,12 @@ if(this.x>canvas.width) this.x=0
 
 draw(){
 
-const width=16+Math.sin(this.phase)*4
+const w=20+Math.sin(this.phase)*6
 
 ctx.fillStyle="#ff922b"
 
 ctx.beginPath()
-ctx.ellipse(this.x,mid(),width,80,0,0,Math.PI*2)
+ctx.ellipse(this.x,mid(),w,95,0,0,Math.PI*2)
 ctx.fill()
 
 }
@@ -326,7 +325,7 @@ class Integral{
 constructor(x){
 
 this.x=x
-this.v=(Math.random()-0.5)*0.08
+this.v=(Math.random()-0.5)*0.07
 
 }
 
@@ -344,7 +343,7 @@ draw(){
 ctx.fillStyle="#9775fa"
 
 ctx.beginPath()
-ctx.roundRect(this.x-12,mid()-95,24,190,12)
+ctx.roundRect(this.x-14,mid()-110,28,220,14)
 ctx.fill()
 
 }
@@ -356,16 +355,19 @@ ctx.fill()
 const lipids=[]
 const cholesterol=[]
 
-for(let x=0;x<canvas.width;x+=8){
+for(let x=0;x<canvas.width;x+=14){
 lipids.push(new Lipid(x,"outer"))
 lipids.push(new Lipid(x,"inner"))
 }
 
-for(let i=0;i<70;i++)
-cholesterol.push(new Cholesterol(Math.random()*canvas.width))
+/* cholesterol placed between lipid pairs */
+
+for(let x=20;x<canvas.width;x+=32){
+cholesterol.push(new Cholesterol(x))
+}
 
 const channels=[
-new IonChannel(canvas.width*0.25),
+new IonChannel(canvas.width*0.28),
 new IonChannel(canvas.width*0.75)
 ]
 
@@ -378,8 +380,8 @@ function animate(){
 
 ctx.clearRect(0,0,canvas.width,canvas.height)
 
-ctx.fillStyle="rgba(255,255,255,0.06)"
-ctx.fillRect(0,mid()-70,canvas.width,140)
+ctx.fillStyle="rgba(255,255,255,0.05)"
+ctx.fillRect(0,mid()-90,canvas.width,180)
 
 lipids.forEach(l=>{l.move();l.draw()})
 cholesterol.forEach(c=>{c.move();c.draw()})
