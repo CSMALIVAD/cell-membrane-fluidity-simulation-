@@ -18,6 +18,8 @@ height:100vh;
 display:block;
 }
 
+/* labels */
+
 .label{
 position:absolute;
 left:50%;
@@ -30,6 +32,8 @@ font-size:14px;
 #core{top:50vh}
 #inner{top:67vh}
 #cyto{bottom:120px}
+
+/* legend */
 
 .legend{
 position:absolute;
@@ -56,7 +60,9 @@ margin-right:6px;
 .tail{background:#ffd43b}
 .chol{background:#ffe066}
 .protein{background:#845ef7}
-.raft{background:#ffa94d}
+.pump{background:#ff6b6b}
+.channel{background:#6c5ce7}
+.carrier{background:#ffa94d}
 
 </style>
 </head>
@@ -72,11 +78,15 @@ margin-right:6px;
 <div id="cyto" class="label">Cytoplasm</div>
 
 <div class="legend">
+
 <div><span class="sym head"></span>Phospholipid head</div>
 <div><span class="sym tail"></span>Fatty acid tails</div>
 <div><span class="sym chol"></span>Cholesterol</div>
-<div><span class="sym protein"></span>Membrane proteins</div>
-<div><span class="sym raft"></span>Lipid raft domain</div>
+<div><span class="sym channel"></span>Ion channel</div>
+<div><span class="sym carrier"></span>Transport protein</div>
+<div><span class="sym pump"></span>Na⁺/K⁺ pump</div>
+<div><span class="sym protein"></span>Integral protein</div>
+
 </div>
 
 <script>
@@ -93,12 +103,10 @@ window.addEventListener("resize",resize)
 
 const mid=()=>canvas.height/2
 
-/* membrane parameters */
-
 const OFFSET=95
 const TAIL=70
 const HEAD=9
-const SPACING=16
+const SPACING=10
 
 /* dynamic membrane curvature */
 
@@ -110,7 +118,7 @@ return Math.sin(x*0.006+time)*12
 
 }
 
-/* lipid raft domains */
+/* lipid raft zones */
 
 const rafts=[
 {center:300,width:200},
@@ -119,18 +127,21 @@ const rafts=[
 
 function raftFactor(x){
 
-let factor=1
+let f=1
 
 rafts.forEach(r=>{
 if(Math.abs(x-r.center)<r.width/2){
-factor=0.5
+f=0.5
 }
 })
 
-return factor
+return f
+
 }
 
-/* PHOSPHOLIPID */
+/* ====================
+PHOSPHOLIPID
+==================== */
 
 class Lipid{
 
@@ -138,14 +149,13 @@ constructor(x,leaflet){
 
 this.x=x
 this.leaflet=leaflet
+
 this.vx=(Math.random()-0.5)*0.2
 this.phase=Math.random()*Math.PI
 
 }
 
 move(){
-
-/* Brownian diffusion */
 
 this.vx+=(Math.random()-0.5)*0.05
 
@@ -169,6 +179,7 @@ let y=base+membraneCurve(this.x)
 const dir=this.leaflet==="outer"?1:-1
 
 ctx.fillStyle="#4dabf7"
+
 ctx.beginPath()
 ctx.arc(this.x,y,HEAD,0,Math.PI*2)
 ctx.fill()
@@ -192,7 +203,9 @@ ctx.stroke()
 
 }
 
-/* CHOLESTEROL */
+/* ====================
+CHOLESTEROL
+==================== */
 
 class Cholesterol{
 
@@ -201,7 +214,9 @@ this.x=x
 }
 
 move(){
+
 this.x+=(Math.random()-0.5)*0.15
+
 }
 
 draw(){
@@ -220,24 +235,171 @@ ctx.fill()
 
 }
 
-/* PROTEIN */
+/* ====================
+ION CHANNEL
+==================== */
 
-class Protein{
+class Channel{
 
 constructor(x){
 
 this.x=x
-this.size=30+Math.random()*10
+this.ions=[]
 
 }
 
 move(){
 
-this.x+=(Math.random()-0.5)*0.2
+if(Math.random()<0.03)
+this.ions.push({y:mid()-120})
 
-if(this.x<-40) this.x=canvas.width+40
-if(this.x>canvas.width+40) this.x=-40
+this.ions.forEach(i=>i.y+=2)
 
+this.ions=this.ions.filter(i=>i.y<mid()+120)
+
+}
+
+draw(){
+
+let y=mid()+membraneCurve(this.x)
+
+ctx.fillStyle="#6c5ce7"
+
+ctx.beginPath()
+ctx.roundRect(this.x-16,y-110,32,220,12)
+ctx.fill()
+
+ctx.fillStyle="#00e5ff"
+
+this.ions.forEach(i=>{
+ctx.beginPath()
+ctx.arc(this.x,i.y,4,0,Math.PI*2)
+ctx.fill()
+})
+
+}
+
+}
+
+/* ====================
+TRANSPORT PROTEIN
+==================== */
+
+class Carrier{
+
+constructor(x){
+
+this.x=x
+this.phase=0
+this.molecules=[]
+
+}
+
+move(){
+
+this.phase+=0.05
+
+if(Math.random()<0.03)
+this.molecules.push({y:mid()-110})
+
+this.molecules.forEach(m=>m.y+=2)
+
+this.molecules=this.molecules.filter(m=>m.y<mid()+110)
+
+}
+
+draw(){
+
+let y=mid()+membraneCurve(this.x)
+
+ctx.fillStyle="#ffa94d"
+
+const w=20+Math.sin(this.phase)*6
+
+ctx.beginPath()
+ctx.ellipse(this.x,y,w,100,0,0,Math.PI*2)
+ctx.fill()
+
+ctx.fillStyle="#00ffcc"
+
+this.molecules.forEach(m=>{
+ctx.beginPath()
+ctx.arc(this.x,m.y,4,0,Math.PI*2)
+ctx.fill()
+})
+
+}
+
+}
+
+/* ====================
+Na/K PUMP
+==================== */
+
+class Pump{
+
+constructor(x){
+
+this.x=x
+this.phase=0
+this.na=[]
+this.k=[]
+
+}
+
+move(){
+
+this.phase+=0.04
+
+if(Math.random()<0.04)
+this.na.push({y:mid()+90})
+
+if(Math.random()<0.03)
+this.k.push({y:mid()-90})
+
+this.na.forEach(i=>i.y-=2)
+this.k.forEach(i=>i.y+=2)
+
+}
+
+draw(){
+
+let y=mid()+membraneCurve(this.x)
+
+ctx.fillStyle="#ff6b6b"
+
+ctx.beginPath()
+ctx.roundRect(this.x-18,y-110,36,220,12)
+ctx.fill()
+
+ctx.fillStyle="#00d4ff"
+
+this.na.forEach(i=>{
+ctx.beginPath()
+ctx.arc(this.x-8,i.y,4,0,Math.PI*2)
+ctx.fill()
+})
+
+ctx.fillStyle="#aaff00"
+
+this.k.forEach(i=>{
+ctx.beginPath()
+ctx.arc(this.x+8,i.y,4,0,Math.PI*2)
+ctx.fill()
+})
+
+}
+
+}
+
+/* ====================
+INTEGRAL PROTEIN
+==================== */
+
+class Integral{
+
+constructor(x){
+this.x=x
 }
 
 draw(){
@@ -247,15 +409,8 @@ let y=mid()+membraneCurve(this.x)
 ctx.fillStyle="#845ef7"
 
 ctx.beginPath()
-ctx.roundRect(this.x-this.size/2,y-110,this.size,220,12)
+ctx.roundRect(this.x-16,y-110,32,220,12)
 ctx.fill()
-
-/* membrane bending due to protein */
-
-ctx.beginPath()
-ctx.arc(this.x,y,40,0,Math.PI*2)
-ctx.strokeStyle="rgba(255,255,255,0.05)"
-ctx.stroke()
 
 }
 
@@ -265,7 +420,6 @@ ctx.stroke()
 
 const lipids=[]
 const cholesterol=[]
-const proteins=[]
 
 for(let x=0;x<canvas.width;x+=SPACING){
 
@@ -277,10 +431,12 @@ lipids.push(new Lipid(x,"inner"))
 for(let x=40;x<canvas.width;x+=120)
 cholesterol.push(new Cholesterol(x))
 
-for(let i=0;i<6;i++)
-proteins.push(new Protein(Math.random()*canvas.width))
+const channel=new Channel(canvas.width*0.2)
+const carrier=new Carrier(canvas.width*0.45)
+const pump=new Pump(canvas.width*0.6)
+const integral=new Integral(canvas.width*0.8)
 
-/* ANIMATION */
+/* animation */
 
 function animate(){
 
@@ -288,19 +444,8 @@ ctx.clearRect(0,0,canvas.width,canvas.height)
 
 time+=0.02
 
-/* hydrophobic region */
-
 ctx.fillStyle="rgba(255,255,255,0.03)"
 ctx.fillRect(0,mid()-95,canvas.width,190)
-
-/* lipid rafts */
-
-rafts.forEach(r=>{
-
-ctx.fillStyle="rgba(255,169,77,0.08)"
-ctx.fillRect(r.center-r.width/2,mid()-95,r.width,190)
-
-})
 
 lipids.forEach(l=>{
 l.move()
@@ -312,10 +457,16 @@ c.move()
 c.draw()
 })
 
-proteins.forEach(p=>{
-p.move()
-p.draw()
-})
+channel.move()
+channel.draw()
+
+carrier.move()
+carrier.draw()
+
+pump.move()
+pump.draw()
+
+integral.draw()
 
 requestAnimationFrame(animate)
 
