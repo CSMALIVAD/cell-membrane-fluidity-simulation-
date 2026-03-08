@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+
+body{
+margin:0;
+background:#020617;
+color:white;
+font-family:Arial;
+text-align:center;
+}
+
+canvas{
+width:100vw;
+height:100vh;
+display:block;
+}
+
+.label{
+position:absolute;
+left:50%;
+transform:translateX(-50%);
+font-size:14px;
+}
+
+#extra{top:20px}
+#outer{top:34vh}
+#core{top:50vh}
+#inner{top:66vh}
+#cyto{bottom:120px}
+
+.legend{
+position:absolute;
+bottom:10px;
+left:50%;
+transform:translateX(-50%);
+background:rgba(0,0,0,0.6);
+padding:12px 16px;
+border-radius:10px;
+font-size:13px;
+text-align:left;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:6px 20px;
+}
+
+.sym{
+display:inline-block;
+width:14px;
+height:14px;
+margin-right:6px;
+}
+
+.head{background:#4dabf7}
+.tail{background:#ffd43b}
+.chol{background:#ffe066}
+.channel{background:#845ef7}
+.carrier{background:#ff922b}
+.integral{background:#9775fa}
+.ion{background:#00e5ff;border-radius:50%}
+
+</style>
+</head>
+
+<body>
+
+<canvas id="membrane"></canvas>
+
+<div id="extra" class="label">Extracellular space</div>
+<div id="outer" class="label">Outer leaflet (hydrophilic heads)</div>
+<div id="core" class="label">Hydrophobic lipid core</div>
+<div id="inner" class="label">Inner leaflet (hydrophilic heads)</div>
+<div id="cyto" class="label">Cytoplasm</div>
+
+<div class="legend">
+<div><span class="sym head"></span>Phospholipid head</div>
+<div><span class="sym tail"></span>Fatty acid tails</div>
+<div><span class="sym chol"></span>Cholesterol</div>
+<div><span class="sym channel"></span>Ion channel protein</div>
+<div><span class="sym carrier"></span>Transport protein</div>
+<div><span class="sym integral"></span>Integral protein</div>
+<div><span class="sym ion"></span>Transported ions</div>
+</div>
+
+<script>
+
+const canvas=document.getElementById("membrane")
+const ctx=canvas.getContext("2d")
+
+function resize(){
+canvas.width=window.innerWidth
+canvas.height=window.innerHeight
+}
+resize()
+window.addEventListener("resize",resize)
+
+const mid=()=>canvas.height/2
+
+/* =====================
+CHOLESTEROL
+===================== */
+
+class Cholesterol{
+
+constructor(x){
+
+this.x=x
+this.v=(Math.random()-0.5)*0.06
+this.side=Math.random()<0.5?-1:1
+
+}
+
+move(){
+
+this.x+=this.v
+
+if(this.x<0) this.x=canvas.width
+if(this.x>canvas.width) this.x=0
+
+}
+
+draw(){
+
+const y=mid()+this.side*30
+
+ctx.fillStyle="#ffe066"
+
+ctx.fillRect(this.x-3,y-18,6,36)
+
+ctx.beginPath()
+ctx.arc(this.x,y-this.side*20,2.5,0,Math.PI*2)
+ctx.fill()
+
+}
+
+}
+
+/* =====================
+PHOSPHOLIPID
+===================== */
+
+class Lipid{
+
+constructor(x,leaflet){
+
+this.x=x
+this.leaflet=leaflet
+this.v=(Math.random()-0.5)*0.2
+this.rot=Math.random()*Math.PI
+
+this.flip=false
+this.flipProgress=0
+
+}
+
+move(){
+
+let slowFactor=1
+
+cholesterol.forEach(c=>{
+if(Math.abs(c.x-this.x)<25){
+slowFactor=0.6
+}
+})
+
+this.x+=this.v*slowFactor
+
+this.rot+=0.03
+
+if(this.x<0) this.x=canvas.width
+if(this.x>canvas.width) this.x=0
+
+if(!this.flip && Math.random()<0.000003){
+this.flip=true
+this.flipProgress=0
+}
+
+if(this.flip){
+
+this.flipProgress+=0.02
+
+if(this.flipProgress>=1){
+this.flip=false
+this.leaflet=this.leaflet==="outer"?"inner":"outer"
+}
+
+}
+
+}
+
+draw(){
+
+let y
+
+if(this.flip){
+
+const start=this.leaflet==="outer"?mid()-85:mid()+85
+const end=this.leaflet==="outer"?mid()+85:mid()-85
+
+y=start+(end-start)*this.flipProgress
+
+}else{
+
+y=this.leaflet==="outer"?mid()-85:mid()+85
+
+}
+
+const dir=this.leaflet==="outer"?1:-1
+
+ctx.save()
+
+ctx.translate(this.x,y)
+ctx.rotate(Math.sin(this.rot)*0.2)
+
+ctx.fillStyle="#4dabf7"
+ctx.beginPath()
+ctx.arc(0,0,6,0,Math.PI*2)
+ctx.fill()
+
+ctx.strokeStyle="#ffd43b"
+ctx.lineWidth=2
+
+ctx.beginPath()
+ctx.moveTo(0,0)
+ctx.lineTo(-4,dir*34)
+
+ctx.moveTo(0,0)
+ctx.lineTo(4,dir*34)
+ctx.stroke()
+
+ctx.restore()
+
+}
+
+}
+
+/* =====================
+ION CHANNEL
+===================== */
+
+class IonChannel{
+
+constructor(x){
+this.x=x
+this.ions=[]
+}
+
+move(){
+
+if(Math.random()<0.03){
+this.ions.push({y:mid()-90})
+}
+
+this.ions.forEach(i=>i.y+=1.6)
+this.ions=this.ions.filter(i=>i.y<mid()+90)
+
+}
+
+draw(){
+
+ctx.fillStyle="#845ef7"
+
+ctx.beginPath()
+ctx.roundRect(this.x-12,mid()-95,24,190,12)
+ctx.fill()
+
+ctx.fillStyle="#00e5ff"
+
+this.ions.forEach(i=>{
+ctx.beginPath()
+ctx.arc(this.x,i.y,3,0,Math.PI*2)
+ctx.fill()
+})
+
+}
+
+}
+
+/* =====================
+CARRIER
+===================== */
+
+class Carrier{
+
+constructor(x){
+
+this.x=x
+this.v=(Math.random()-0.5)*0.06
+this.phase=0
+
+}
+
+move(){
+
+this.x+=this.v
+this.phase+=0.05
+
+if(this.x<0) this.x=canvas.width
+if(this.x>canvas.width) this.x=0
+
+}
+
+draw(){
+
+const width=16+Math.sin(this.phase)*4
+
+ctx.fillStyle="#ff922b"
+
+ctx.beginPath()
+ctx.ellipse(this.x,mid(),width,80,0,0,Math.PI*2)
+ctx.fill()
+
+}
+
+}
+
+/* =====================
+INTEGRAL PROTEIN
+===================== */
+
+class Integral{
+
+constructor(x){
+
+this.x=x
+this.v=(Math.random()-0.5)*0.08
+
+}
+
+move(){
+
+this.x+=this.v
+
+if(this.x<0) this.x=canvas.width
+if(this.x>canvas.width) this.x=0
+
+}
+
+draw(){
+
+ctx.fillStyle="#9775fa"
+
+ctx.beginPath()
+ctx.roundRect(this.x-12,mid()-95,24,190,12)
+ctx.fill()
+
+}
+
+}
+
+/* ARRAYS */
+
+const lipids=[]
+const cholesterol=[]
+
+for(let x=0;x<canvas.width;x+=8){
+lipids.push(new Lipid(x,"outer"))
+lipids.push(new Lipid(x,"inner"))
+}
+
+for(let i=0;i<70;i++)
+cholesterol.push(new Cholesterol(Math.random()*canvas.width))
+
+const channels=[
+new IonChannel(canvas.width*0.25),
+new IonChannel(canvas.width*0.75)
+]
+
+const carrier=new Carrier(canvas.width*0.5)
+const integral=new Integral(canvas.width*0.65)
+
+/* ANIMATION */
+
+function animate(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+ctx.fillStyle="rgba(255,255,255,0.06)"
+ctx.fillRect(0,mid()-70,canvas.width,140)
+
+lipids.forEach(l=>{l.move();l.draw()})
+cholesterol.forEach(c=>{c.move();c.draw()})
+
+channels.forEach(c=>{c.move();c.draw()})
+
+carrier.move()
+carrier.draw()
+
+integral.move()
+integral.draw()
+
+requestAnimationFrame(animate)
+
+}
+
+animate()
+
+</script>
+
+</body>
+</html>
