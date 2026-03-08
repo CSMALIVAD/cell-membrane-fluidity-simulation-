@@ -54,11 +54,8 @@ margin-right:6px;
 
 .head{background:#4dabf7}
 .tail{background:#ffd43b}
+.raft{background:#ffa94d}
 .chol{background:#ffe066}
-.channel{background:#6c5ce7}
-.carrier{background:#ffa94d}
-.pump{background:#ff6b6b}
-.integral{background:#845ef7}
 
 </style>
 </head>
@@ -68,9 +65,9 @@ margin-right:6px;
 <canvas id="membrane"></canvas>
 
 <div id="extra" class="label">Extracellular space</div>
-<div id="outer" class="label">Outer hydrophilic surface</div>
-<div id="core" class="label">Hydrophobic lipid core</div>
-<div id="inner" class="label">Inner hydrophilic surface</div>
+<div id="outer" class="label">Outer leaflet</div>
+<div id="core" class="label">Hydrophobic core</div>
+<div id="inner" class="label">Inner leaflet</div>
 <div id="cyto" class="label">Cytoplasm</div>
 
 <div class="legend">
@@ -78,10 +75,7 @@ margin-right:6px;
 <div><span class="sym head"></span>Phospholipid head</div>
 <div><span class="sym tail"></span>Fatty acid tails</div>
 <div><span class="sym chol"></span>Cholesterol</div>
-<div><span class="sym channel"></span>Ion channel</div>
-<div><span class="sym carrier"></span>Carrier protein</div>
-<div><span class="sym pump"></span>Na⁺/K⁺ pump</div>
-<div><span class="sym integral"></span>Integral protein</div>
+<div><span class="sym raft"></span>Lipid raft domain</div>
 
 </div>
 
@@ -99,20 +93,76 @@ window.addEventListener("resize",resize)
 
 const mid=()=>canvas.height/2
 
-const OFFSET=95
+const OFFSET=90
 const TAIL=70
-const HEAD=9
+const HEAD=8
 const SPACING=10
 
 let time=0
 
 function membraneCurve(x){
-return Math.sin(x*0.006+time)*10
+return Math.sin(x*0.006+time)*8
 }
 
-/* =======================
+/* lipid raft domains */
+
+const rafts=[
+{center:300,width:220},
+{center:800,width:240}
+]
+
+function raftFactor(x){
+
+let factor=1
+
+rafts.forEach(r=>{
+if(Math.abs(x-r.center)<r.width/2){
+factor=0.4
+}
+})
+
+return factor
+
+}
+
+/* ===================
+CHOLESTEROL
+=================== */
+
+class Cholesterol{
+
+constructor(x){
+this.x=x
+}
+
+move(){
+
+this.x+=(Math.random()-0.5)*0.1
+
+if(this.x<-40) this.x=canvas.width+40
+if(this.x>canvas.width+40) this.x=-40
+
+}
+
+draw(){
+
+let y=mid()+membraneCurve(this.x)
+
+ctx.fillStyle="#ffe066"
+
+ctx.fillRect(this.x-3,y-35,6,70)
+
+ctx.beginPath()
+ctx.arc(this.x,y-40,3,0,Math.PI*2)
+ctx.fill()
+
+}
+
+}
+
+/* ===================
 PHOSPHOLIPID
-======================= */
+=================== */
 
 class Lipid{
 
@@ -120,19 +170,32 @@ constructor(x,leaflet){
 
 this.x=x
 this.leaflet=leaflet
+
 this.vx=(Math.random()-0.5)*0.2
 this.phase=Math.random()*Math.PI
+
+this.unsat=Math.random()<0.4
 
 }
 
 move(){
+
+let slow=raftFactor(this.x)
+
+/* cholesterol ordering */
+
+cholesterol.forEach(c=>{
+if(Math.abs(c.x-this.x)<25){
+slow*=0.5
+}
+})
 
 this.vx+=(Math.random()-0.5)*0.05
 
 if(this.vx>0.4) this.vx=0.4
 if(this.vx<-0.4) this.vx=-0.4
 
-this.x+=this.vx
+this.x+=this.vx*slow
 
 if(this.x<-40) this.x=canvas.width+40
 if(this.x>canvas.width+40) this.x=-40
@@ -149,19 +212,57 @@ let y=base+membraneCurve(this.x)
 const dir=this.leaflet==="outer"?1:-1
 
 ctx.fillStyle="#4dabf7"
+
 ctx.beginPath()
 ctx.arc(this.x,y,HEAD,0,Math.PI*2)
 ctx.fill()
+
+/* glycocalyx */
+
+if(this.leaflet==="outer" && Math.random()<0.05){
+
+ctx.strokeStyle="#40c057"
+
+ctx.beginPath()
+ctx.moveTo(this.x,y-HEAD)
+ctx.lineTo(this.x,y-30)
+
+ctx.moveTo(this.x,y-25)
+ctx.lineTo(this.x-6,y-35)
+
+ctx.moveTo(this.x,y-25)
+ctx.lineTo(this.x+6,y-35)
+
+ctx.stroke()
+
+}
+
+/* lipid tails */
 
 ctx.strokeStyle="#ffd43b"
 ctx.lineWidth=2
 
 let bend=Math.sin(this.phase)*6
 
+cholesterol.forEach(c=>{
+if(Math.abs(c.x-this.x)<25){
+bend*=0.3
+}
+})
+
 ctx.beginPath()
+
+if(this.unsat){
+
+ctx.moveTo(this.x-4,y)
+ctx.quadraticCurveTo(this.x-10,y+dir*25,this.x-4+bend,y+dir*TAIL)
+
+}else{
 
 ctx.moveTo(this.x-4,y)
 ctx.lineTo(this.x-4+bend,y+dir*TAIL)
+
+}
 
 ctx.moveTo(this.x+4,y)
 ctx.lineTo(this.x+4-bend,y+dir*TAIL)
@@ -172,111 +273,9 @@ ctx.stroke()
 
 }
 
-/* =======================
-CHOLESTEROL
-======================= */
-
-class Cholesterol{
-
-constructor(x){this.x=x}
-
-move(){
-this.x+=(Math.random()-0.5)*0.15
-}
-
-draw(){
-
-let y=mid()+membraneCurve(this.x)
-
-ctx.fillStyle="#ffe066"
-
-ctx.fillRect(this.x-4,y-35,8,70)
-
-ctx.beginPath()
-ctx.arc(this.x,y-40,3,0,Math.PI*2)
-ctx.fill()
-
-}
-
-}
-
-/* =======================
-ION CHANNEL
-======================= */
-
-class Channel{
-
-constructor(x){
-this.x=x
-this.ions=[]
-}
-
-move(){
-
-if(Math.random()<0.03)
-this.ions.push({y:mid()-120})
-
-this.ions.forEach(i=>i.y+=2)
-this.ions=this.ions.filter(i=>i.y<mid()+120)
-
-}
-
-draw(){
-
-let y=mid()+membraneCurve(this.x)
-
-ctx.fillStyle="#6c5ce7"
-
-ctx.beginPath()
-ctx.roundRect(this.x-16,y-110,32,220,12)
-ctx.fill()
-
-ctx.fillStyle="#00e5ff"
-
-this.ions.forEach(i=>{
-ctx.beginPath()
-ctx.arc(this.x,i.y,4,0,Math.PI*2)
-ctx.fill()
-})
-
-}
-
-}
-
-/* =======================
-CARRIER
-======================= */
-
-class Carrier{
-
-constructor(x){
-this.x=x
-this.phase=0
-}
-
-move(){
-this.phase+=0.05
-}
-
-draw(){
-
-let y=mid()+membraneCurve(this.x)
-
-ctx.fillStyle="#ffa94d"
-
-const w=20+Math.sin(this.phase)*6
-
-ctx.beginPath()
-ctx.ellipse(this.x,y,w,100,0,0,Math.PI*2)
-ctx.fill()
-
-}
-
-}
-
-/* =======================
+/* ===================
 Na/K PUMP
-======================= */
+=================== */
 
 class Pump{
 
@@ -284,6 +283,8 @@ constructor(x){
 
 this.x=x
 this.state=0
+this.timer=0
+
 this.na=[]
 this.k=[]
 
@@ -293,18 +294,19 @@ move(){
 
 let center=mid()+membraneCurve(this.x)
 
-/* bind Na */
+this.timer++
 
 if(this.state===0){
 
 if(this.na.length<3)
 this.na.push({y:center+100})
 
+if(this.timer>40){
 this.state=1
-
+this.timer=0
 }
 
-/* pump Na out */
+}
 
 else if(this.state===1){
 
@@ -313,22 +315,22 @@ this.na.forEach(i=>i.y-=2)
 if(this.na.every(i=>i.y<center-110)){
 this.na=[]
 this.state=2
+this.timer=0
 }
 
 }
-
-/* bind K */
 
 else if(this.state===2){
 
 if(this.k.length<2)
 this.k.push({y:center-110})
 
+if(this.timer>40){
 this.state=3
-
+this.timer=0
 }
 
-/* pump K in */
+}
 
 else if(this.state===3){
 
@@ -337,6 +339,7 @@ this.k.forEach(i=>i.y+=2)
 if(this.k.every(i=>i.y>center+100)){
 this.k=[]
 this.state=0
+this.timer=0
 }
 
 }
@@ -373,45 +376,22 @@ ctx.fill()
 
 }
 
-/* =======================
-INTEGRAL PROTEIN
-======================= */
-
-class Integral{
-
-constructor(x){this.x=x}
-
-draw(){
-
-let y=mid()+membraneCurve(this.x)
-
-ctx.fillStyle="#845ef7"
-
-ctx.beginPath()
-ctx.roundRect(this.x-16,y-110,32,220,12)
-ctx.fill()
-
-}
-
-}
-
 /* arrays */
 
 const lipids=[]
 const cholesterol=[]
 
 for(let x=0;x<canvas.width;x+=SPACING){
+
 lipids.push(new Lipid(x,"outer"))
 lipids.push(new Lipid(x,"inner"))
+
 }
 
-for(let x=40;x<canvas.width;x+=120)
+for(let x=50;x<canvas.width;x+=120)
 cholesterol.push(new Cholesterol(x))
 
-const channel=new Channel(canvas.width*0.2)
-const carrier=new Carrier(canvas.width*0.45)
-const pump=new Pump(canvas.width*0.6)
-const integral=new Integral(canvas.width*0.8)
+const pump=new Pump(canvas.width*0.5)
 
 /* animation */
 
@@ -422,16 +402,27 @@ ctx.clearRect(0,0,canvas.width,canvas.height)
 time+=0.02
 
 ctx.fillStyle="rgba(255,255,255,0.03)"
-ctx.fillRect(0,mid()-95,canvas.width,190)
+ctx.fillRect(0,mid()-90,canvas.width,180)
 
-lipids.forEach(l=>{l.move();l.draw()})
-cholesterol.forEach(c=>{c.move();c.draw()})
+/* raft visual */
 
-channel.move(); channel.draw()
-carrier.move(); carrier.draw()
-pump.move(); pump.draw()
+rafts.forEach(r=>{
+ctx.fillStyle="rgba(255,169,77,0.08)"
+ctx.fillRect(r.center-r.width/2,mid()-90,r.width,180)
+})
 
-integral.draw()
+lipids.forEach(l=>{
+l.move()
+l.draw()
+})
+
+cholesterol.forEach(c=>{
+c.move()
+c.draw()
+})
+
+pump.move()
+pump.draw()
 
 requestAnimationFrame(animate)
 
