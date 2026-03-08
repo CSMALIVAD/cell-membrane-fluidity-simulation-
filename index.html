@@ -10,6 +10,7 @@ margin:0;
 background:#020617;
 color:white;
 font-family:Arial;
+text-align:center;
 }
 
 canvas{
@@ -17,6 +18,8 @@ width:100vw;
 height:100vh;
 display:block;
 }
+
+/* region labels */
 
 .label{
 position:absolute;
@@ -26,10 +29,42 @@ font-size:14px;
 }
 
 #extra{top:20px}
-#outer{top:32vh}
+#outer{top:33vh}
 #core{top:50vh}
-#inner{top:68vh}
+#inner{top:67vh}
 #cyto{bottom:120px}
+
+/* legend */
+
+.legend{
+position:absolute;
+bottom:10px;
+left:50%;
+transform:translateX(-50%);
+background:rgba(0,0,0,0.65);
+padding:14px 18px;
+border-radius:10px;
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:6px 24px;
+font-size:13px;
+}
+
+.sym{
+display:inline-block;
+width:14px;
+height:14px;
+margin-right:6px;
+}
+
+.head{background:#4dabf7}
+.tail{background:#ffd43b}
+.chol{background:#ffe066}
+.channel{background:#6c5ce7}
+.carrier{background:#ff922b}
+.integral{background:#845ef7}
+.glyco{background:#40c057}
+.cyt{background:#ff6b6b}
 
 </style>
 </head>
@@ -43,6 +78,19 @@ font-size:14px;
 <div id="core" class="label">Hydrophobic lipid core</div>
 <div id="inner" class="label">Inner hydrophilic surface</div>
 <div id="cyto" class="label">Cytoplasm</div>
+
+<div class="legend">
+
+<div><span class="sym head"></span>Phospholipid head</div>
+<div><span class="sym tail"></span>Fatty acid tails</div>
+<div><span class="sym chol"></span>Cholesterol</div>
+<div><span class="sym channel"></span>Ion channel</div>
+<div><span class="sym carrier"></span>Carrier protein</div>
+<div><span class="sym integral"></span>Integral protein</div>
+<div><span class="sym glyco"></span>Glycoprotein</div>
+<div><span class="sym cyt"></span>Cytoskeleton</div>
+
+</div>
 
 <script>
 
@@ -60,14 +108,12 @@ const mid=()=>canvas.height/2
 
 /* geometry */
 
-const HEAD_RADIUS=9
-const TAIL_LENGTH=75
-const BILAYER_OFFSET=95
+const HEAD=9
+const TAIL=75
+const OFFSET=95
 const SPACING=16
 
-/* ======================
-PHOSPHOLIPID
-====================== */
+/* PHOSPHOLIPID */
 
 class Lipid{
 
@@ -75,36 +121,38 @@ constructor(x,leaflet){
 
 this.x=x
 this.leaflet=leaflet
-this.v=(Math.random()-0.5)*0.14
 this.phase=Math.random()*Math.PI
-
-this.unsaturated=Math.random()<0.4
+this.unsat=Math.random()<0.35
 
 this.flip=false
-this.flipProgress=0
+this.flipP=0
 
 }
 
 move(){
 
-this.x+=this.v
-this.phase+=0.07
+/* Brownian random walk */
 
-if(this.x<0) this.x=canvas.width
-if(this.x>canvas.width) this.x=0
+this.x+=(Math.random()-0.5)*0.6
+this.phase+=0.08
 
-/* rare flip-flop */
+/* infinite wrap */
+
+if(this.x<-40) this.x=canvas.width+40
+if(this.x>canvas.width+40) this.x=-40
+
+/* rare flip flop */
 
 if(!this.flip && Math.random()<0.000001){
 this.flip=true
-this.flipProgress=0
+this.flipP=0
 }
 
 if(this.flip){
 
-this.flipProgress+=0.02
+this.flipP+=0.02
 
-if(this.flipProgress>=1){
+if(this.flipP>=1){
 this.flip=false
 this.leaflet=this.leaflet==="outer"?"inner":"outer"
 }
@@ -115,14 +163,14 @@ this.leaflet=this.leaflet==="outer"?"inner":"outer"
 
 draw(){
 
-let y=this.leaflet==="outer"?mid()-BILAYER_OFFSET:mid()+BILAYER_OFFSET
+let y=this.leaflet==="outer"?mid()-OFFSET:mid()+OFFSET
 const dir=this.leaflet==="outer"?1:-1
 
 if(this.flip){
 
-const start=this.leaflet==="outer"?mid()-BILAYER_OFFSET:mid()+BILAYER_OFFSET
-const end=this.leaflet==="outer"?mid()+BILAYER_OFFSET:mid()-BILAYER_OFFSET
-y=start+(end-start)*this.flipProgress
+const start=this.leaflet==="outer"?mid()-OFFSET:mid()+OFFSET
+const end=this.leaflet==="outer"?mid()+OFFSET:mid()-OFFSET
+y=start+(end-start)*this.flipP
 
 }
 
@@ -131,7 +179,7 @@ y=start+(end-start)*this.flipProgress
 ctx.fillStyle="#4dabf7"
 
 ctx.beginPath()
-ctx.arc(this.x,y,HEAD_RADIUS,0,Math.PI*2)
+ctx.arc(this.x,y,HEAD,0,Math.PI*2)
 ctx.fill()
 
 /* tails */
@@ -143,20 +191,20 @@ const bend=Math.sin(this.phase)*6
 
 ctx.beginPath()
 
-if(this.unsaturated){
+if(this.unsat){
 
 ctx.moveTo(this.x-4,y)
-ctx.quadraticCurveTo(this.x-10,y+dir*25,this.x-6+bend,y+dir*TAIL_LENGTH)
+ctx.quadraticCurveTo(this.x-10,y+dir*25,this.x-6+bend,y+dir*TAIL)
 
 }else{
 
 ctx.moveTo(this.x-4,y)
-ctx.lineTo(this.x-4+bend,y+dir*TAIL_LENGTH)
+ctx.lineTo(this.x-4+bend,y+dir*TAIL)
 
 }
 
 ctx.moveTo(this.x+4,y)
-ctx.lineTo(this.x+4-bend,y+dir*TAIL_LENGTH)
+ctx.lineTo(this.x+4-bend,y+dir*TAIL)
 
 ctx.stroke()
 
@@ -164,37 +212,25 @@ ctx.stroke()
 
 }
 
-/* ======================
-CHOLESTEROL
-====================== */
+/* CHOLESTEROL */
 
 class Cholesterol{
 
 constructor(x){
-
 this.x=x
-this.v=(Math.random()-0.5)*0.06
-
 }
 
 move(){
-
-this.x+=this.v
-
-if(this.x<0) this.x=canvas.width
-if(this.x>canvas.width) this.x=0
-
+this.x+=(Math.random()-0.5)*0.2
+if(this.x<-40) this.x=canvas.width+40
+if(this.x>canvas.width+40) this.x=-40
 }
 
 draw(){
 
 ctx.fillStyle="#ffe066"
 
-/* sterol body */
-
 ctx.fillRect(this.x-4,mid()-38,8,76)
-
-/* hydroxyl head */
 
 ctx.beginPath()
 ctx.arc(this.x,mid()-42,3,0,Math.PI*2)
@@ -204,9 +240,7 @@ ctx.fill()
 
 }
 
-/* ======================
-ION CHANNEL
-====================== */
+/* CHANNEL */
 
 class Channel{
 
@@ -246,9 +280,7 @@ ctx.fill()
 
 }
 
-/* ======================
-CARRIER
-====================== */
+/* CARRIER */
 
 class Carrier{
 
@@ -263,7 +295,7 @@ this.phase+=0.05
 
 draw(){
 
-const w=20+Math.sin(this.phase)*7
+const w=20+Math.sin(this.phase)*6
 
 ctx.fillStyle="#ff922b"
 
@@ -275,9 +307,7 @@ ctx.fill()
 
 }
 
-/* ======================
-INTEGRAL PROTEIN
-====================== */
+/* INTEGRAL */
 
 class Integral{
 
@@ -297,9 +327,7 @@ ctx.fill()
 
 }
 
-/* ======================
-GLYCOPROTEIN
-====================== */
+/* GLYCOPROTEIN */
 
 class Glycoprotein{
 
@@ -333,9 +361,7 @@ ctx.stroke()
 
 }
 
-/* ======================
-CYTOSKELETON
-====================== */
+/* CYTOSKELETON */
 
 class Cytoskeleton{
 
@@ -362,10 +388,8 @@ const lipids=[]
 const cholesterol=[]
 
 for(let x=0;x<canvas.width;x+=SPACING){
-
 lipids.push(new Lipid(x,"outer"))
 lipids.push(new Lipid(x,"inner"))
-
 }
 
 for(let x=30;x<canvas.width;x+=110)
@@ -380,17 +404,15 @@ const carrier=new Carrier(canvas.width*0.55)
 const integral=new Integral(canvas.width*0.4)
 
 const glyco=[]
-const cytoskeleton=[]
+const cytos=[]
 
 for(let i=0;i<8;i++)
 glyco.push(new Glycoprotein(Math.random()*canvas.width))
 
 for(let i=0;i<12;i++)
-cytoskeleton.push(new Cytoskeleton(Math.random()*canvas.width))
+cytos.push(new Cytoskeleton(Math.random()*canvas.width))
 
-/* ======================
-ANIMATION
-====================== */
+/* ANIMATION */
 
 function animate(){
 
@@ -400,7 +422,6 @@ ctx.fillStyle="rgba(255,255,255,0.04)"
 ctx.fillRect(0,mid()-95,canvas.width,190)
 
 lipids.forEach(l=>{l.move();l.draw()})
-
 cholesterol.forEach(c=>{c.move();c.draw()})
 
 channels.forEach(c=>{c.move();c.draw()})
@@ -412,7 +433,7 @@ integral.draw()
 
 glyco.forEach(g=>g.draw())
 
-cytoskeleton.forEach(c=>c.draw())
+cytos.forEach(c=>c.draw())
 
 requestAnimationFrame(animate)
 
